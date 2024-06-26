@@ -1,0 +1,16 @@
+.timeline-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-top: 20px;
+  }
+  
+  .selected-image-container {
+    margin-top: 20px;
+    text-align: center;
+  }
+  
+  .selected-image {
+    max-width: 100%;
+  }
+  
