@@ -18,7 +18,10 @@ const MapComponent = () => {
           zoom: 1,
           basePath: '/api'
         });
-        setMap(map);
+
+        map.on('load', () => {
+          setMap(map);
+        });
       } catch (error) {
         console.error('Error initializing map:', error);
       }
@@ -81,28 +84,38 @@ const MapComponent = () => {
   };
 
   const plotLocations = () => {
+    console.log('Plotting locations:', imageData);
     imageData.forEach((data, index) => {
       new tt.Marker().setLngLat([data.lon, data.lat]).addTo(map);
 
       if (index < imageData.length - 1) {
         const nextData = imageData[index + 1];
-        const line = {
-          type: 'Feature',
-          geometry: {
-            type: 'LineString',
-            coordinates: [
-              [data.lon, data.lat],
-              [nextData.lon, nextData.lat]
-            ]
+        const lineCoordinates = [
+          [data.lon, data.lat],
+          [nextData.lon, nextData.lat]
+        ];
+
+        console.log(`Adding line from ${data.lon},${data.lat} to ${nextData.lon},${nextData.lat}`);
+
+        map.addSource(`line-source-${index}`, {
+          type: 'geojson',
+          data: {
+            type: 'Feature',
+            properties: {},
+            geometry: {
+              type: 'LineString',
+              coordinates: lineCoordinates
+            }
           }
-        };
+        });
 
         map.addLayer({
-          id: `line-${index}`,
+          id: `line-layer-${index}`,
           type: 'line',
-          source: {
-            type: 'geojson',
-            data: line
+          source: `line-source-${index}`,
+          layout: {
+            'line-join': 'round',
+            'line-cap': 'round'
           },
           paint: {
             'line-color': '#888',
