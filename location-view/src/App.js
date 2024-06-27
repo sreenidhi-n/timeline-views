@@ -1,10 +1,15 @@
 import React from 'react';
 import MapComponent from './components/MapComponent';
+import Navigation from './components/Navigation'; 
 
 function App() {
   return (
-    <div className="App" style={{ margin: 0, padding: 0, height: '100vh' }}>
-      <MapComponent />
+    <div>
+        <Navigation />
+      <br></br>
+      <div>
+        <MapComponent />
+      </div>
     </div>
   );
 }

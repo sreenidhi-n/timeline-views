@@ -12,7 +12,7 @@ const MyVerticalTimeline = () => {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            directory: 'C:/Users/Sreenidhi/Desktop/timeline-views/jpg'
+            directory: 'C:/Users/Sreenidhi/Desktop/timeline v1/timeline-views/jpg'
           }),
         });
 
