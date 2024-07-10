@@ -27,3 +27,4 @@ yarn-error.log*
 
 /gps
 /jpg
+/backend/node_modules
