@@ -28,3 +28,4 @@ yarn-error.log*
 /gps
 /jpg
 /backend/node_modules
+/timelinev2/node_modules
