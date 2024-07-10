@@ -1,0 +1,49 @@
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+  
+  #root {
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    font-family: sans-serif;
+    color: #333;
+    background-color: #aad3df;
+  }
+  
+  /* height of the container */
+  .leaflet-container {
+    height: 86vh;
+    width: 200vh;
+  }
+  
+  .cluster-icon {
+    background-color: #333;
+    height: 2em;
+    width: 2em;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    font-size: 1.2rem;
+    box-shadow: 0 0 0px 5px #fff;
+  }
+  
+  .date-picker-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    right: 50;
+    z-index: 9999 !important;
+    height:0px;
+  }
+  
+  .date-picker-container > div {
+    right: 50;
+  }
+  
