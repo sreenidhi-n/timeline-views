@@ -6,7 +6,6 @@ import Navigation from './components/Navigation';
 const App = () => {
   return (
     <div>
-      <Navigation />
       <br></br>
       <div>
         <MyVerticalTimeline />
