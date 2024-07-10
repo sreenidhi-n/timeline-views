@@ -3,27 +3,35 @@ const fs = require('fs').promises;
 const path = require('path');
 const ExifImage = require('exif').ExifImage;
 const cors = require('cors');
+
 const app = express();
 app.use(cors());
+
+// Serve static files from the 'pics' directory
+app.use('/thumbnails', express.static(path.join(__dirname, 'pics')));
 
 function convertDMSToDD(dmsArray, direction) {
   if (!Array.isArray(dmsArray) || dmsArray.length !== 3) {
     return null;
   }
+  
   const [degrees, minutes, seconds] = dmsArray;
   let dd = degrees + minutes / 60 + seconds / 3600;
   
   if (direction === 'S' || direction === 'W') {
     dd = dd * -1;
   }
+  
   return parseFloat(dd.toFixed(6));
 }
 
 function parseExifDate(dateString) {
   if (!dateString) return null;
+  
   const [datePart, timePart] = dateString.split(' ');
   const [year, month, day] = datePart.split(':');
   const [hour, minute, second] = timePart ? timePart.split(':') : [0, 0, 0];
+  
   return new Date(year, month - 1, day, hour, minute, second);
 }
 
@@ -35,6 +43,7 @@ app.get('/api/images', async (req, res) => {
         try {
           const filePath = path.join(__dirname, 'pics', file);
           const stats = await fs.stat(filePath);
+          
           new ExifImage({ image: filePath }, (error, exifData) => {
             if (error) {
               console.warn(`No EXIF data found for file: ${file}`, error.message);
@@ -42,7 +51,8 @@ app.get('/api/images', async (req, res) => {
                 fileName: file, 
                 latitude: null, 
                 longitude: null, 
-                timestamp: stats.mtime.toISOString() 
+                timestamp: stats.mtime.toISOString(),
+                thumbnailUrl: `/thumbnails/${file}`
               });
             } else {
               let latitude = null;
@@ -60,15 +70,23 @@ app.get('/api/images', async (req, res) => {
                   timestamp = parsedDate.toISOString();
                 }
               }
-              resolve({ fileName: file, latitude, longitude, timestamp });
+
+              resolve({ 
+                fileName: file, 
+                latitude, 
+                longitude, 
+                timestamp,
+                thumbnailUrl: `/thumbnails/${file}`
+              });
             }
           });
         } catch (error) {
           console.error(`Error processing file ${file}:`, error);
-          resolve({ fileName: file, latitude: null, longitude: null, timestamp: null });
+          resolve({ fileName: file, latitude: null, longitude: null, timestamp: null, thumbnailUrl: null });
         }
       }))
     );
+
     const filteredImageData = imageData.filter(image => image.latitude !== null && image.longitude !== null);
     res.json(filteredImageData);
   } catch (error) {

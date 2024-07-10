@@ -6,8 +6,10 @@ import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import L from 'leaflet';
 import "leaflet/dist/leaflet.css";
+import 'leaflet-polylinedecorator';
 import "./styles.css";
-import "./App.css"
+import "./App.css";
+import ArrowLine from "./ArrowLine";
 
 const customIcon = new Icon({
   iconUrl: require("./icons/placeholder.png"),
@@ -34,6 +36,18 @@ function SetViewOnMarkers({ markers }) {
   return null;
 }
 
+function ArrowConnector({ markers }) {
+  const sortedMarkers = [...markers].sort((a, b) => a.timestamp - b.timestamp);
+  
+  return sortedMarkers.slice(0, -1).map((marker, index) => (
+    <ArrowLine
+      key={index}
+      positions={[marker.geocode, sortedMarkers[index + 1].geocode]}
+      color="red"
+    />
+  ));
+}
+
 export default function App() {
   const [imageMarkers, setImageMarkers] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -44,7 +58,7 @@ export default function App() {
   const fetchImageData = async () => {
     try {
       setIsLoading(true);
-      const response = await fetch('/api/images');
+      const response = await fetch('http://localhost:3001/api/images');
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -57,7 +71,13 @@ export default function App() {
   
       const markers = imageJson.map(image => ({
         geocode: [image.latitude, image.longitude],
-        popUp: `Image: ${image.fileName}<br>Date: ${new Date(image.timestamp).toLocaleString()}`,
+        popUp: `
+          <div>
+            <img src="http://localhost:3001${image.thumbnailUrl}" alt="${image.fileName}" style="width:100%; max-width:200px; height:auto;"/>
+            <p>Image: ${image.fileName}</p>
+            <p>Date: ${new Date(image.timestamp).toLocaleString()}</p>
+          </div>
+        `,
         timestamp: new Date(image.timestamp)
       }));
   
@@ -75,7 +95,7 @@ export default function App() {
   }, []);
 
   const filteredMarkers = imageMarkers.filter(marker => {
-    return marker.timestamp >= startDate && marker.timestamp <= new Date(endDate.getTime() + 86400000); 
+    return marker.timestamp >= startDate && marker.timestamp <= new Date(endDate.getTime() + 86400000);
   });
 
   if (isLoading) {
@@ -127,10 +147,13 @@ export default function App() {
           <MarkerClusterGroup chunkedLoading iconCreateFunction={createClusterCustomIcon}>
             {filteredMarkers.map((marker, index) => (
               <Marker key={index} position={marker.geocode} icon={customIcon}>
-                <Popup dangerouslySetInnerHTML={{ __html: marker.popUp }} />
+                <Popup minWidth={220}>
+                  <div dangerouslySetInnerHTML={{ __html: marker.popUp }} />
+                </Popup>
               </Marker>
             ))}
           </MarkerClusterGroup>
+          <ArrowConnector markers={filteredMarkers} />
           <SetViewOnMarkers markers={filteredMarkers} />
         </MapContainer>
       </div>
