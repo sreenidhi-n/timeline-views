@@ -27,5 +27,7 @@ yarn-error.log*
 
 /gps
 /jpg
-/backend/node_modules
-/timelinev2/node_modules
+/location-view/node_modules
+/timeline-plot-backend/node_modules
+/timeline-plot/node_modules
+/timeline-plot/public/node_modules
