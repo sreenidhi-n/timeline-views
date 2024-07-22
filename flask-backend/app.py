@@ -6,8 +6,10 @@ from PIL import Image, ExifTags
 from datetime import datetime
 import subprocess
 from flask_cors import CORS
+from bson.binary import Binary
 from py_mini_racer import MiniRacer
 from io import BytesIO
+import json
 
 app = Flask(__name__)
 CORS(app, resources={r"/api/*": {"origins": "http://localhost:3000"}})
@@ -119,7 +121,30 @@ def thumbnails(filename):
 @app.route('/api/images', methods=['GET'])
 def get_images():
     try:
-        image_directory = os.path.join(os.getcwd(), 'pics')
+        images = list(collection_with_data.find({}))
+        image_data = []
+        for file in images:
+            try:
+                image_id = file["_id"]
+                image_name = file["file_name"]
+                stats = datetime.now().timestamp()
+                image_bytes = base64.b64decode(file["file_content"])
+                exif_data = get_exif_data_from_bytes(image_bytes)
+                #print(f"EXIF data for {file}:", exif_data)
+                result = ctx.call('processImageData', image_name, {'mtime': stats * 1000}, exif_data)
+                #print(f"Processed data for {file}:", result)
+                image_data.append(result)
+            except Exception as e:
+                print(f"Error processing file {file}: {str(e)}")
+        
+        filtered_image_data = [img for img in image_data if img['latitude'] is not None and img['longitude'] is not None]
+        #print(f"Total images: {len(image_data)}, Images with GPS data: {len(filtered_image_data)}")
+        return jsonify(filtered_image_data)
+    
+    except Exception as e:
+        #print(f"Error reading images directory: {str(e)}")
+        return jsonify(error='Failed to fetch image data'), 500
+        '''image_directory = os.path.join(os.getcwd(), 'pics')
         files = os.listdir(image_directory)
         
         image_data = []
@@ -146,8 +171,9 @@ def get_images():
     
     except Exception as e:
         print(f"Error reading images directory: {str(e)}")
-        return jsonify(error='Failed to fetch image data'), 500
-
+        return jsonify(error='Failed to fetch image data'), 500'''
+        
+        
 @app.route('/api/images-without-metadata', methods=['GET'])
 def get_images_without_metadata():
     try:
@@ -156,20 +182,22 @@ def get_images_without_metadata():
         for img in images:
             exif_data = img.get('exif_data', {})
             dimensions = f"{exif_data.get('ExifImageWidth', 'Unknown')}x{exif_data.get('ExifImageHeight', 'Unknown')}"
+            timestamp = exif_data.get('timestamp', 'Unknown') if exif_data else 'Unknown'
+            gps_info = exif_data.get('GPSInfo', 'Unknown') if exif_data else 'Unknown'
             image_metadata.append({
                 'filename': img['file_name'],
                 'imageUrl': f'/images/{img["file_name"]}',
                 'metadata': {
-                    'DateTimeOriginal': exif_data.get('timestamp', 'Unknown'),
-                    'GPSInfo': exif_data.get('GPSInfo', 'Unknown'),
-                    'ExposureTime': exif_data.get('ExposureTime', 'Unknown'),
-                    'FNumber': exif_data.get('FNumber', 'Unknown'),
-                    'ISO': exif_data.get('ISOSpeedRatings', 'Unknown'),
+                    'DateTimeOriginal': timestamp,
+                    'GPSInfo': gps_info,
+                    'ExposureTime': exif_data.get('ExposureTime', 'Unknown') if exif_data else 'Unknown',
+                    'FNumber': exif_data.get('FNumber', 'Unknown') if exif_data else 'Unknown',
+                    'ISO': exif_data.get('ISOSpeedRatings', 'Unknown') if exif_data else 'Unknown',
                     'dimensions': dimensions,
-                    'Make': exif_data.get('Make', 'Unknown'),
-                    'Model': exif_data.get('Model', 'Unknown'),
-                    'hasDateTime': 'DateTime' in exif_data,
-                    'hasLocation': 'GPSInfo' in exif_data
+                    'Make': exif_data.get('Make', 'Unknown') if exif_data else 'Unknown',
+                    'Model': exif_data.get('Model', 'Unknown') if exif_data else 'Unknown',
+                    'hasDateTime': 'DateTime' in exif_data if exif_data else False,
+                    'hasLocation': 'GPSInfo' in exif_data if exif_data else False
                 }
             })
         
@@ -178,6 +206,7 @@ def get_images_without_metadata():
         print(f"Error retrieving images without metadata: {str(e)}")
         return jsonify(error='Internal server error'), 500
 
+
 @app.route('/api/get-image-dates', methods=['POST'])
 def get_image_dates():
     try:
@@ -185,27 +214,40 @@ def get_image_dates():
         page = data.get('page', 1)
         size = data.get('size', 2)
         skip = (page - 1) * size
-        images = collection_with_data.find().skip(skip).limit(size)
+        
+        print(f"Fetching images for page {page} with size {size} (skip={skip})")
+        
+        # Fetch images from MongoDB sorted by timestamp
+        images = collection_with_data.find().sort('timestamp', pymongo.ASCENDING).skip(skip).limit(size)
         image_data = []
 
         for image in images:
             try:
                 image_id = image["_id"]
                 image_bytes = base64.b64decode(image["file_content"])
-                image_name = image["file_name"]  
+                image_name = image["file_name"]
                 exif_data = get_exif_data_from_bytes(image_bytes)
-                fake_mtime = datetime.now().timestamp()
-                result = ctx.call('processImageData', image_name, {'mtime': fake_mtime * 1000}, exif_data)
+                image_timestamp = image.get('timestamp', datetime.now().timestamp())
+                result = ctx.call('processImageData', image_name, {'mtime': image_timestamp * 1000}, exif_data)
+                
+                # Check if result has a timestamp
+                if 'timestamp' not in result:
+                    print(f"No timestamp in result for image {image_id}")
+                
+                print(f"Image ID: {image_id}, Timestamp: {result.get('timestamp')}")
                 image_data.append(result)
             except Exception as e:
                 print(f"Error processing image {image_id}: {str(e)}")
-        image_data.sort(key=lambda x: x['timestamp'])
-        print(f"Processed image data: {image_data}")
+
+        print(f"Processed image data before sorting: {image_data}")
+        # Sorting might be redundant if MongoDB sorting is correct
+        image_data.sort(key=lambda x: x.get('timestamp', float('inf')))
+        print(f"Processed image data after sorting: {image_data}")
         return jsonify(image_data)
     except Exception as e:
         print(f"Error processing images: {str(e)}")
         return jsonify(error='Failed to process images'), 500
-
+    
 if __name__ == '__main__':
     subprocess.Popen(['python', 'upload_to_mongodb.py', './pics'])
     app.run(debug=True, port=4000)

@@ -1,16 +1,18 @@
-import os
-import base64
 import pymongo
-from PIL import Image
-from PIL.ExifTags import TAGS, GPSTAGS
+import base64
+from PIL import Image, ExifTags
 import fractions
+import io
 
 # MongoDB connection settings
-MONGO_URI = 'mongodb://localhost:27017/'
-client = pymongo.MongoClient(MONGO_URI)
-db = client["image_database"]
-collection_with_data = db["images_with_data"]
-collection_without_data = db["images_without_data"]
+SOURCE_MONGO_URI = 'mongodb://localhost:27017/Carved_Files'
+DEST_MONGO_URI = 'mongodb://localhost:27017/image_database'
+
+# Connect to source and destination MongoDB
+source_client = pymongo.MongoClient(SOURCE_MONGO_URI)
+source_db = source_client.get_database()
+dest_client = pymongo.MongoClient(DEST_MONGO_URI)
+dest_db = dest_client.get_database()
 
 def convert_to_str(value):
     if isinstance(value, bytes):
@@ -27,11 +29,11 @@ def convert_to_str(value):
     else:
         return value
 
-from PIL import Image, ExifTags, ImageOps
-
-def get_exif_data(image_path):
+def get_exif_data(image_doc):
     try:
-        image = Image.open(image_path)
+        encoded_image = image_doc["file_content"]
+        image_data = base64.b64decode(encoded_image)
+        image = Image.open(io.BytesIO(image_data))
         exif_data = image._getexif()
         if exif_data is None:
             return None
@@ -51,7 +53,7 @@ def get_exif_data(image_path):
                 exif[str(tag_name)] = None
         return exif
     except Exception as e:
-        print(f"Error extracting EXIF data from {image_path}: {e}")
+        print(f"Error extracting EXIF data: {e}")
         return None
 
 def has_datetime(exif):
@@ -64,38 +66,45 @@ def has_location(exif):
         return True
     return False
 
-def encode_image_to_base64(image_path):
-    with open(image_path, "rb") as image_file:
-        encoded_string = base64.b64encode(image_file.read()).decode('utf-8')
-    return encoded_string
-
-def upload_images_from_directory(directory):
-    for filename in os.listdir(directory):
-        if filename.endswith(".jpg") or filename.endswith(".jpeg") or filename.endswith(".png"):
-            image_path = os.path.join(directory, filename)
-            encoded_image = encode_image_to_base64(image_path)
-            exif_data = get_exif_data(image_path)
+def migrate_images_from_collection(source_collection_name):
+    try:
+        # Check if the collection exists
+        if source_collection_name not in source_db.list_collection_names():
+            print(f"Collection '{source_collection_name}' does not exist in the source database.")
+            return
+        
+        source_collection = source_db[source_collection_name]
+        images = source_collection.find({})
+        
+        for image_doc in images:
+            # Extract EXIF data
+            exif_data = get_exif_data(image_doc)
             
-            # Determine which collection to insert into
+            # Determine destination collection
             if exif_data is None or (not has_datetime(exif_data) and not has_location(exif_data)):
-                collection = collection_without_data
+                dest_collection = dest_db["images_without_data"]
             else:
-                collection = collection_with_data
+                dest_collection = dest_db["images_with_data"]
             
-            # Prepare the document to be inserted
-            document = {
-                "file_name": filename,
-                "file_content": encoded_image,
-                "exif_data": exif_data  # Store the full EXIF data
-            }
+            # Update document with EXIF data
+            image_doc["exif_data"] = exif_data
             
-            # Insert the document into the appropriate collection
-            try:
-                result = collection.insert_one(document)
-                print(f"Image '{filename}' uploaded to '{collection.name}' with ID: {result.inserted_id}")
-            except Exception as e:
-                print(f"Error inserting image '{filename}' into '{collection.name}': {e}")
+            # Insert document into destination collection
+            result = dest_collection.insert_one(image_doc)
+            print(f"Image '{image_doc['file_name']}' migrated to '{dest_collection.name}' with ID: {result.inserted_id}")
+    
+    except Exception as e:
+        print(f"Error migrating images from collection '{source_collection_name}': {e}")
 
 if __name__ == "__main__":
-    directory_path = "E:/CID-internship/sree/flask-backend/pics"
-    upload_images_from_directory(directory_path)
+    # List of collections to migrate from Carved_Files
+    collections_to_migrate = ['jpeg', 'jpg', 'ico', 'raw', 'tiff', 'png', 'tif', 'bmp']
+    collections_to_migrate = source_db.list_collection_names()
+    print(type(collections_to_migrate[0]))
+    
+    for collection_name in collections_to_migrate:
+        migrate_images_from_collection(collection_name)
+
+# Close MongoDB connections
+source_client.close()
+dest_client.close()
