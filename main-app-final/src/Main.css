@@ -1,0 +1,49 @@
+a button {
+    padding: 10px;
+    width:30%;
+    background-color:#7d9c9d;
+    color: white;
+    cursor: pointer;
+    font-family:"Medium";
+    transition: all 0.5s;
+    cursor: pointer;
+    position:"absolute"
+  }
+  
+  a button:hover {
+    background-color: #576f73;
+  }
+
+  a button span {
+    cursor: pointer;
+    display: inline-block;
+    position: relative;
+    transition: 0.5s;
+  }
+  
+  a button span:after {
+    content: '\00bb';
+    position: absolute;
+    opacity: 0;
+    top: 0;
+    right: -20px;
+    transition: 0.5s;
+  }
+  
+  a button:hover span {
+    padding-right: 25px;
+  }
+  
+  a button:hover span:after {
+    opacity: 1;
+    right: 0;
+  }
+
+  @font-face {
+    font-family: "Medium";
+    src: local("Raleway"),
+      url("fonts/Raleway-VariableFont_wght.ttf") format("woff");
+  }
+  body{
+    background-color: "white";
+  }
