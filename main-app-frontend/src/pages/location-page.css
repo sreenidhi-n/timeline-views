@@ -1,0 +1,45 @@
+.app-container {
+  display: flex;
+  flex-direction: column;
+}
+
+.date-picker-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: absolute;
+  margin:auto;
+  height: 0%;
+  width:100%;
+}
+
+.date-picker-container > div {
+  margin: 0 10px;
+}
+
+.gap{
+  height:30px;
+  position: relative;
+}
+
+.map-container {
+  position: relative;
+}
+
+.custom-marker-cluster {
+  background-color: #3498db;
+  border-radius: 50%;
+  color: white;
+  height: 33px;
+  width: 33px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 14px;
+}
+
+.arrow-icon {
+  font-size: 20px;
+  color: black;
+}
